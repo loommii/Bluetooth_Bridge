@@ -40,6 +40,9 @@
 #include "esp_hidd.h"
 #include "esp_hid_gap.h"
 
+// USB Host 鼠标支持（使用 usb_host_hid 组件时启用）
+#include "usb_host_mouse.h"
+
 static const char *TAG = "HID_DEV_DEMO";
 
 typedef struct
@@ -971,4 +974,9 @@ void app_main(void)
         ESP_LOGE(TAG, "esp_nimble_enable failed: %d", ret);
     }
 #endif
+
+    // 初始化 USB Host 鼠标
+    ESP_LOGI(TAG, "Initializing USB Host Mouse...");
+    ESP_ERROR_CHECK(usb_host_mouse_init(NULL, NULL));
+    ESP_ERROR_CHECK(usb_host_mouse_start(4 * 1024, configMAX_PRIORITIES - 4));
 }

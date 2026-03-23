@@ -1,10 +1,21 @@
+# =====================
+# Bluetooth HID Device 配置
+# =====================
 CONFIG_BT_ENABLED=y
-CONFIG_BTDM_CTRL_MODE_BTDM=y
 CONFIG_BT_BLUEDROID_ENABLED=y
-CONFIG_BT_CLASSIC_ENABLED=y
 CONFIG_BT_BLE_ENABLED=y
 CONFIG_BT_HID_ENABLED=y
 CONFIG_BT_HID_DEVICE_ENABLED=y
 CONFIG_BT_SDP_COMMON_ENABLED=y
 CONFIG_BT_BLE_42_FEATURES_SUPPORTED=y
+
+# =====================
+# USB Host 配置
+# =====================
+# USB Host 配置由 usb 和 usb_host_hid 组件自动管理
+# 不需要手动设置 CONFIG_USB_HOST* 配置项
+
+# =====================
+# 其他配置
+# =====================
 CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
