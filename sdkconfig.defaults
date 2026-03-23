@@ -10,6 +10,18 @@ CONFIG_BT_SDP_COMMON_ENABLED=y
 CONFIG_BT_BLE_42_FEATURES_SUPPORTED=y
 
 # =====================
+# NimBLE 配置
+# =====================
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_HOST_ENABLE=y
+CONFIG_BT_NIMBLE_MAX_BONDS=10
+CONFIG_BT_NIMBLE_SM_LEGACY=y
+CONFIG_BT_NIMBLE_SM_SC=y
+CONFIG_BT_NIMBLE_SM_MITM_SC=y
+CONFIG_BT_NIMBLE_NVS_PERSIST=y
+CONFIG_BT_NIMBLE_NVS_FLASH=y
+
+# =====================
 # USB Host 配置
 # =====================
 # USB Host 配置由 usb 和 usb_host_hid 组件自动管理

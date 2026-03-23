@@ -159,7 +159,7 @@ static void add_bt_scan_result(esp_bd_addr_t bda, esp_bt_cod_t *cod, esp_bt_uuid
         if (r->name == NULL && name && name_len) {
             char *name_s = (char *)malloc(name_len + 1);
             if (name_s == NULL) {
-                ESP_LOGE(TAG, "Malloc result name failed!");
+                ESP_LOGE(TAG, "分配结果名称内存失败!");
                 return;
             }
             memcpy(name_s, name, name_len);
@@ -177,7 +177,7 @@ static void add_bt_scan_result(esp_bd_addr_t bda, esp_bt_cod_t *cod, esp_bt_uuid
 
     r = (esp_hid_scan_result_t *)malloc(sizeof(esp_hid_scan_result_t));
     if (r == NULL) {
-        ESP_LOGE(TAG, "Malloc bt_hidh_scan_result_t failed!");
+        ESP_LOGE(TAG, "分配蓝牙 HID 扫描结果内存失败!");
         return;
     }
     r->transport = ESP_HID_TRANSPORT_BT;
@@ -191,7 +191,7 @@ static void add_bt_scan_result(esp_bd_addr_t bda, esp_bt_cod_t *cod, esp_bt_uuid
         char *name_s = (char *)malloc(name_len + 1);
         if (name_s == NULL) {
             free(r);
-            ESP_LOGE(TAG, "Malloc result name failed!");
+            ESP_LOGE(TAG, "分配结果名称内存失败!");
             return;
         }
         memcpy(name_s, name, name_len);
@@ -208,12 +208,12 @@ static void add_bt_scan_result(esp_bd_addr_t bda, esp_bt_cod_t *cod, esp_bt_uuid
 static void add_ble_scan_result(esp_bd_addr_t bda, esp_ble_addr_type_t addr_type, uint16_t appearance, uint8_t *name, uint8_t name_len, int rssi)
 {
     if (find_scan_result(bda, ble_scan_results)) {
-        ESP_LOGW(TAG, "Result already exists!");
+        ESP_LOGW(TAG, "结果已存在!");
         return;
     }
     esp_hid_scan_result_t *r = (esp_hid_scan_result_t *)malloc(sizeof(esp_hid_scan_result_t));
     if (r == NULL) {
-        ESP_LOGE(TAG, "Malloc ble_hidh_scan_result_t failed!");
+        ESP_LOGE(TAG, "分配蓝牙 HID 扫描结果内存失败!");
         return;
     }
     r->transport = ESP_HID_TRANSPORT_BLE;
@@ -227,7 +227,7 @@ static void add_ble_scan_result(esp_bd_addr_t bda, esp_ble_addr_type_t addr_type
         char *name_s = (char *)malloc(name_len + 1);
         if (name_s == NULL) {
             free(r);
-            ESP_LOGE(TAG, "Malloc result name failed!");
+            ESP_LOGE(TAG, "分配结果名称内存失败!");
             return;
         }
         memcpy(name_s, name, name_len);
@@ -432,13 +432,13 @@ static void bt_gap_event_handler(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_para
         break;
     }
     case ESP_BT_GAP_PIN_REQ_EVT: {
-        ESP_LOGI(TAG, "BT GAP PIN_REQ_EVT min_16_digit:%d", param->pin_req.min_16_digit);
+        ESP_LOGI(TAG, "蓝牙 GAP PIN 请求：最小 16 位=%d", param->pin_req.min_16_digit);
         if (param->pin_req.min_16_digit) {
-            ESP_LOGI(TAG, "Input pin code: 0000 0000 0000 0000");
+            ESP_LOGI(TAG, "输入 PIN 码：0000 0000 0000 0000");
             esp_bt_pin_code_t pin_code = {0};
             esp_bt_gap_pin_reply(param->pin_req.bda, true, 16, pin_code);
         } else {
-            ESP_LOGI(TAG, "Input pin code: 1234");
+            ESP_LOGI(TAG, "输入 PIN 码：1234");
             esp_bt_pin_code_t pin_code;
             pin_code[0] = '1';
             pin_code[1] = '2';
@@ -451,22 +451,22 @@ static void bt_gap_event_handler(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_para
 
 #if (CONFIG_EXAMPLE_SSP_ENABLED == true)
     case ESP_BT_GAP_CFM_REQ_EVT:
-        ESP_LOGI(TAG, "BT GAP CFM_REQ_EVT Please compare the numeric value: %06" PRIu32,
+        ESP_LOGI(TAG, "蓝牙 GAP 确认请求：请比较数值 %06" PRIu32,
                  param->cfm_req.num_val);
         esp_bt_gap_ssp_confirm_reply(param->cfm_req.bda, true);
         break;
     case ESP_BT_GAP_KEY_NOTIF_EVT:
-        ESP_LOGI(TAG, "BT GAP KEY_NOTIF_EVT passkey:%06" PRIu32, param->key_notif.passkey);
+        ESP_LOGI(TAG, "蓝牙 GAP 密钥通知：passkey=%06" PRIu32, param->key_notif.passkey);
         break;
     case ESP_BT_GAP_KEY_REQ_EVT:
-        ESP_LOGI(TAG, "BT GAP KEY_REQ_EVT Please enter passkey!");
+        ESP_LOGI(TAG, "蓝牙 GAP 密钥请求：请输入 passkey!");
         break;
 #endif
     case ESP_BT_GAP_MODE_CHG_EVT:
-        ESP_LOGI(TAG, "BT GAP MODE_CHG_EVT mode:%d", param->mode_chg.mode);
+        ESP_LOGI(TAG, "蓝牙 GAP 模式变更：mode=%d", param->mode_chg.mode);
         break;
     default:
-        ESP_LOGV(TAG, "BT GAP EVENT %s", bt_gap_evt_str(event));
+        ESP_LOGV(TAG, "蓝牙 GAP 事件 %s", bt_gap_evt_str(event));
         break;
     }
 }
@@ -475,14 +475,16 @@ static esp_err_t init_bt_gap(void)
 {
     esp_err_t ret;
 #if (CONFIG_EXAMPLE_SSP_ENABLED)
-    /* Set default parameters for Secure Simple Pairing */
+    /* Set default parameters for Secure Simple Pairing
+     * Use ESP_BT_IO_CAP_NONE for automatic bonding without confirmation
+     */
     esp_bt_sp_param_t param_type = ESP_BT_SP_IOCAP_MODE;
     esp_bt_io_cap_t iocap = ESP_BT_IO_CAP_NONE;
     esp_bt_gap_set_security_param(param_type, &iocap, sizeof(uint8_t));
 #endif
     /*
      * Set default parameters for Legacy Pairing
-     * Use fixed pin code
+     * Note: PIN code not required with IO_CAP_NONE
      */
     esp_bt_pin_type_t pin_type = ESP_BT_PIN_TYPE_FIXED;
     esp_bt_pin_code_t pin_code;
@@ -493,13 +495,13 @@ static esp_err_t init_bt_gap(void)
     esp_bt_gap_set_pin(pin_type, 4, pin_code);
 
     if ((ret = esp_bt_gap_register_callback(bt_gap_event_handler)) != ESP_OK) {
-        ESP_LOGE(TAG, "esp_bt_gap_register_callback failed: %d", ret);
+        ESP_LOGE(TAG, "esp_bt_gap_register_callback 失败：%d", ret);
         return ret;
     }
 
     // Allow BT devices to connect back to us
     if ((ret = esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_NON_DISCOVERABLE)) != ESP_OK) {
-        ESP_LOGE(TAG, "esp_bt_gap_set_scan_mode failed: %d", ret);
+        ESP_LOGE(TAG, "esp_bt_gap_set_scan_mode 失败：%d", ret);
         return ret;
     }
     return ret;
@@ -509,7 +511,7 @@ static esp_err_t start_bt_scan(uint32_t seconds)
 {
     esp_err_t ret = ESP_OK;
     if ((ret = esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY, (int)(seconds / 1.28), 0)) != ESP_OK) {
-        ESP_LOGE(TAG, "esp_bt_gap_start_discovery failed: %d", ret);
+        ESP_LOGE(TAG, "esp_bt_gap_start_discovery 失败：%d", ret);
         return ret;
     }
     return ret;
@@ -528,7 +530,7 @@ static void ble_gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_p
      * SCAN
      * */
     case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT: {
-        ESP_LOGV(TAG, "BLE GAP EVENT SCAN_PARAM_SET_COMPLETE");
+        ESP_LOGV(TAG, "BLE GAP 扫描参数设置完成");
         SEND_BLE_CB();
         break;
     }
@@ -540,7 +542,7 @@ static void ble_gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_p
             break;
         }
         case ESP_GAP_SEARCH_INQ_CMPL_EVT:
-            ESP_LOGV(TAG, "BLE GAP EVENT SCAN DONE: %d", scan_result->scan_rst.num_resps);
+            ESP_LOGV(TAG, "BLE GAP 扫描完成：%d", scan_result->scan_rst.num_resps);
             SEND_BLE_CB();
             break;
         default:
@@ -549,7 +551,7 @@ static void ble_gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_p
         break;
     }
     case ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT: {
-        ESP_LOGV(TAG, "BLE GAP EVENT SCAN CANCELED");
+        ESP_LOGV(TAG, "BLE GAP 扫描已取消");
         break;
     }
 
@@ -557,11 +559,11 @@ static void ble_gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_p
      * ADVERTISEMENT
      * */
     case ESP_GAP_BLE_ADV_DATA_SET_COMPLETE_EVT:
-        ESP_LOGV(TAG, "BLE GAP ADV_DATA_SET_COMPLETE");
+        ESP_LOGV(TAG, "BLE GAP 广播数据设置完成");
         break;
 
     case ESP_GAP_BLE_ADV_START_COMPLETE_EVT:
-        ESP_LOGV(TAG, "BLE GAP ADV_START_COMPLETE");
+        ESP_LOGV(TAG, "BLE GAP 广播开始完成");
         break;
 
     /*
@@ -570,46 +572,46 @@ static void ble_gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_p
     case ESP_GAP_BLE_AUTH_CMPL_EVT:
         if (!param->ble_security.auth_cmpl.success) {
             // if AUTH ERROR,hid maybe don't work.
-            ESP_LOGE(TAG, "BLE GAP AUTH ERROR: 0x%x", param->ble_security.auth_cmpl.fail_reason);
+            ESP_LOGE(TAG, "蓝牙 GAP 认证失败：0x%x", param->ble_security.auth_cmpl.fail_reason);
         } else {
-            ESP_LOGI(TAG, "BLE GAP AUTH SUCCESS");
+            ESP_LOGI(TAG, "蓝牙 GAP 认证成功");
         }
         ble_hid_task_start_up();
         break;
 
     case ESP_GAP_BLE_KEY_EVT: //shows the ble key info share with peer device to the user.
-        ESP_LOGI(TAG, "BLE GAP KEY type = %s", esp_ble_key_type_str(param->ble_security.ble_key.key_type));
+        ESP_LOGI(TAG, "蓝牙 GAP 密钥类型 = %s", esp_ble_key_type_str(param->ble_security.ble_key.key_type));
         break;
 
     case ESP_GAP_BLE_PASSKEY_NOTIF_EVT: // ESP_IO_CAP_OUT
         // The app will receive this evt when the IO has Output capability and the peer device IO has Input capability.
         // Show the passkey number to the user to input it in the peer device.
-        ESP_LOGI(TAG, "BLE GAP PASSKEY_NOTIF passkey:%"PRIu32, param->ble_security.key_notif.passkey);
+        ESP_LOGI(TAG, "蓝牙 GAP 密码通知：passkey=%"PRIu32, param->ble_security.key_notif.passkey);
         break;
 
     case ESP_GAP_BLE_NC_REQ_EVT: // ESP_IO_CAP_IO
         // The app will receive this event when the IO has DisplayYesNO capability and the peer device IO also has DisplayYesNo capability.
         // show the passkey number to the user to confirm it with the number displayed by peer device.
-        ESP_LOGI(TAG, "BLE GAP NC_REQ passkey:%"PRIu32, param->ble_security.key_notif.passkey);
+        ESP_LOGI(TAG, "蓝牙 GAP 数值比较请求：passkey=%"PRIu32, param->ble_security.key_notif.passkey);
         esp_ble_confirm_reply(param->ble_security.key_notif.bd_addr, true);
         break;
 
     case ESP_GAP_BLE_PASSKEY_REQ_EVT: // ESP_IO_CAP_IN
         // The app will receive this evt when the IO has Input capability and the peer device IO has Output capability.
         // See the passkey number on the peer device and send it back.
-        ESP_LOGI(TAG, "BLE GAP PASSKEY_REQ");
+        ESP_LOGI(TAG, "蓝牙 GAP 密码请求");
         //esp_ble_passkey_reply(param->ble_security.ble_req.bd_addr, true, 1234);
         break;
 
     case ESP_GAP_BLE_SEC_REQ_EVT:
-        ESP_LOGI(TAG, "BLE GAP SEC_REQ");
+        ESP_LOGI(TAG, "蓝牙 GAP 安全请求");
         // Send the positive(true) security response to the peer device to accept the security request.
         // If not accept the security request, should send the security response with negative(false) accept value.
         esp_ble_gap_security_rsp(param->ble_security.ble_req.bd_addr, true);
         break;
 
     default:
-        ESP_LOGV(TAG, "BLE GAP EVENT %s", ble_gap_evt_str(event));
+        ESP_LOGV(TAG, "蓝牙 GAP 事件 %s", ble_gap_evt_str(event));
         break;
     }
 }
@@ -619,7 +621,7 @@ static esp_err_t init_ble_gap(void)
     esp_err_t ret;
 
     if ((ret = esp_ble_gap_register_callback(ble_gap_event_handler)) != ESP_OK) {
-        ESP_LOGE(TAG, "esp_ble_gap_register_callback failed: %d", ret);
+        ESP_LOGE(TAG, "esp_ble_gap_register_callback 失败：%d", ret);
         return ret;
     }
     return ret;
@@ -638,13 +640,13 @@ static esp_err_t start_ble_scan(uint32_t seconds)
 {
     esp_err_t ret = ESP_OK;
     if ((ret = esp_ble_gap_set_scan_params(&hid_scan_params)) != ESP_OK) {
-        ESP_LOGE(TAG, "esp_ble_gap_set_scan_params failed: %d", ret);
+        ESP_LOGE(TAG, "esp_ble_gap_set_scan_params 失败：%d", ret);
         return ret;
     }
     WAIT_BLE_CB();
 
     if ((ret = esp_ble_gap_start_scanning(seconds)) != ESP_OK) {
-        ESP_LOGE(TAG, "esp_ble_gap_start_scanning failed: %d", ret);
+        ESP_LOGE(TAG, "esp_ble_gap_start_scanning 失败：%d", ret);
         return ret;
     }
     return ret;
@@ -676,53 +678,49 @@ esp_err_t esp_hid_ble_gap_adv_init(uint16_t appearance, const char *device_name)
         .flag = 0x6,
     };
 
-    esp_ble_auth_req_t auth_req = ESP_LE_AUTH_REQ_SC_MITM_BOND;
-    //esp_ble_io_cap_t iocap = ESP_IO_CAP_OUT;//you have to enter the key on the host
-    //esp_ble_io_cap_t iocap = ESP_IO_CAP_IN;//you have to enter the key on the device
-    esp_ble_io_cap_t iocap = ESP_IO_CAP_IO;//you have to agree that key matches on both
-    //esp_ble_io_cap_t iocap = ESP_IO_CAP_NONE;//device is not capable of input or output, insecure
+    esp_ble_auth_req_t auth_req = ESP_LE_AUTH_REQ_SC_BOND;
+    // Use ESP_IO_CAP_NONE for automatic bonding without passkey confirmation
+    // This provides seamless reconnection experience
+    esp_ble_io_cap_t iocap = ESP_IO_CAP_NONE;
     uint8_t init_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
     uint8_t rsp_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
     uint8_t key_size = 16; //the key size should be 7~16 bytes
-    uint32_t passkey = 1234;//ESP_IO_CAP_OUT
 
     if ((ret = esp_ble_gap_set_security_param(ESP_BLE_SM_AUTHEN_REQ_MODE, &auth_req, 1)) != ESP_OK) {
-        ESP_LOGE(TAG, "GAP set_security_param AUTHEN_REQ_MODE failed: %d", ret);
+        ESP_LOGE(TAG, "GAP 设置安全参数 AUTHEN_REQ_MODE 失败：%d", ret);
         return ret;
     }
 
     if ((ret = esp_ble_gap_set_security_param(ESP_BLE_SM_IOCAP_MODE, &iocap, 1)) != ESP_OK) {
-        ESP_LOGE(TAG, "GAP set_security_param IOCAP_MODE failed: %d", ret);
+        ESP_LOGE(TAG, "GAP 设置安全参数 IOCAP_MODE 失败：%d", ret);
         return ret;
     }
 
     if ((ret = esp_ble_gap_set_security_param(ESP_BLE_SM_SET_INIT_KEY, &init_key, 1)) != ESP_OK) {
-        ESP_LOGE(TAG, "GAP set_security_param SET_INIT_KEY failed: %d", ret);
+        ESP_LOGE(TAG, "GAP 设置安全参数 SET_INIT_KEY 失败：%d", ret);
         return ret;
     }
 
     if ((ret = esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY, &rsp_key, 1)) != ESP_OK) {
-        ESP_LOGE(TAG, "GAP set_security_param SET_RSP_KEY failed: %d", ret);
+        ESP_LOGE(TAG, "GAP 设置安全参数 SET_RSP_KEY 失败：%d", ret);
         return ret;
     }
 
     if ((ret = esp_ble_gap_set_security_param(ESP_BLE_SM_MAX_KEY_SIZE, &key_size, 1)) != ESP_OK) {
-        ESP_LOGE(TAG, "GAP set_security_param MAX_KEY_SIZE failed: %d", ret);
+        ESP_LOGE(TAG, "GAP 设置安全参数 MAX_KEY_SIZE 失败：%d", ret);
         return ret;
     }
 
-    if ((ret = esp_ble_gap_set_security_param(ESP_BLE_SM_SET_STATIC_PASSKEY, &passkey, sizeof(uint32_t))) != ESP_OK) {
-        ESP_LOGE(TAG, "GAP set_security_param SET_STATIC_PASSKEY failed: %d", ret);
-        return ret;
-    }
+    // Note: Static passkey removed for seamless bonding
+    // ESP_BLE_SM_SET_STATIC_PASSKEY is not set to allow automatic pairing
 
     if ((ret = esp_ble_gap_set_device_name(device_name)) != ESP_OK) {
-        ESP_LOGE(TAG, "GAP set_device_name failed: %d", ret);
+        ESP_LOGE(TAG, "GAP 设置设备名称 失败：%d", ret);
         return ret;
     }
 
     if ((ret = esp_ble_gap_config_adv_data(&ble_adv_data)) != ESP_OK) {
-        ESP_LOGE(TAG, "GAP config_adv_data failed: %d", ret);
+        ESP_LOGE(TAG, "GAP 配置广播数据 失败：%d", ret);
         return ret;
     }
 
@@ -792,13 +790,16 @@ esp_err_t esp_hid_ble_gap_adv_init(uint16_t appearance, const char *device_name)
     fields.num_uuids16 = 1;
     fields.uuids16_is_complete = 1;
 
-    /* Initialize the security configuration */
-    ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_DISP_ONLY;
-    ble_hs_cfg.sm_bonding = 1;
-    ble_hs_cfg.sm_mitm = 1;
-    ble_hs_cfg.sm_sc = 1;
+    /* Initialize the security configuration
+     * Use NO_IO to let Windows decide encryption
+     * This provides the best compatibility
+     */
+    ble_hs_cfg.sm_io_cap = BLE_SM_IO_CAP_NO_IO;
+    ble_hs_cfg.sm_bonding = 1;              // Enable bonding (store peer info)
+    ble_hs_cfg.sm_mitm = 0;                 // Disable MITM protection
+    ble_hs_cfg.sm_sc = 0;                   // Use legacy pairing for compatibility
     ble_hs_cfg.sm_our_key_dist = BLE_SM_PAIR_KEY_DIST_ID | BLE_SM_PAIR_KEY_DIST_ENC;
-    ble_hs_cfg.sm_their_key_dist |= BLE_SM_PAIR_KEY_DIST_ID | BLE_SM_PAIR_KEY_DIST_ENC;
+    ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ID | BLE_SM_PAIR_KEY_DIST_ENC;
 
     return ESP_OK;
 
@@ -813,29 +814,38 @@ nimble_hid_gap_event(struct ble_gap_event *event, void *arg)
     switch (event->type) {
     case BLE_GAP_EVENT_CONNECT:
         /* A new connection was established or a connection attempt failed. */
-        ESP_LOGI(TAG, "connection %s; status=%d",
-                event->connect.status == 0 ? "established" : "failed",
+        ESP_LOGI(TAG, "连接%s; 状态=%d",
+                event->connect.status == 0 ? "成功" : "失败",
                 event->connect.status);
-        return 0;
-        break;
-    case BLE_GAP_EVENT_DISCONNECT:
-        ESP_LOGI(TAG, "disconnect; reason=%d", event->disconnect.reason);
 
+        /* Don't initiate encryption here - let Windows (the central) control it.
+         * If Windows wants encryption, it will initiate based on our IO cap settings.
+         * Initiating here can cause connection loops.
+         */
+        return 0;
+    case BLE_GAP_EVENT_DISCONNECT:
+        ESP_LOGI(TAG, "断开；原因=0x%x (%s)",
+                event->disconnect.reason,
+                event->disconnect.reason == BLE_HS_EDONE ? "完成" :
+                event->disconnect.reason == BLE_HS_ETIMEOUT ? "超时" :
+                event->disconnect.reason == BLE_HS_ENOTCONN ? "未连接" :
+                event->disconnect.reason == BLE_HS_EALREADY ? "已连接" :
+                "其他");
         return 0;
     case BLE_GAP_EVENT_CONN_UPDATE:
         /* The central has updated the connection parameters. */
-        ESP_LOGI(TAG, "connection updated; status=%d",
+        ESP_LOGI(TAG, "连接参数已更新; 状态=%d",
                 event->conn_update.status);
         return 0;
 
     case BLE_GAP_EVENT_ADV_COMPLETE:
-        ESP_LOGI(TAG, "advertise complete; reason=%d",
+        ESP_LOGI(TAG, "广播完成；原因=%d",
                 event->adv_complete.reason);
         return 0;
 
     case BLE_GAP_EVENT_SUBSCRIBE:
-        ESP_LOGI(TAG, "subscribe event; conn_handle=%d attr_handle=%d "
-                "reason=%d prevn=%d curn=%d previ=%d curi=%d\n",
+        ESP_LOGI(TAG, "订阅事件；conn_handle=%d attr_handle=%d "
+                "原因=%d prevn=%d curn=%d previ=%d curi=%d\n",
                 event->subscribe.conn_handle,
                 event->subscribe.attr_handle,
                 event->subscribe.reason,
@@ -846,7 +856,7 @@ nimble_hid_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 
     case BLE_GAP_EVENT_MTU:
-        ESP_LOGI(TAG, "mtu update event; conn_handle=%d cid=%d mtu=%d",
+        ESP_LOGI(TAG, "MTU 更新事件；conn_handle=%d cid=%d mtu=%d",
                 event->mtu.conn_handle,
                 event->mtu.channel_id,
                 event->mtu.value);
@@ -854,16 +864,24 @@ nimble_hid_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_ENC_CHANGE:
         /* Encryption has been enabled or disabled for this connection. */
-        MODLOG_DFLT(INFO, "encryption change event; status=%d ",
+        ESP_LOGI(TAG, "加密变更事件；状态=%d",
                 event->enc_change.status);
         rc = ble_gap_conn_find(event->enc_change.conn_handle, &desc);
         assert(rc == 0);
-        ble_hid_task_start_up();
+
+        if (event->enc_change.status == 0) {
+            ESP_LOGI(TAG, "加密已建立：%02X:%02X:%02X:%02X:%02X:%02X",
+                    desc.peer_id_addr.val[0], desc.peer_id_addr.val[1],
+                    desc.peer_id_addr.val[2], desc.peer_id_addr.val[3],
+                    desc.peer_id_addr.val[4], desc.peer_id_addr.val[5]);
+        } else {
+            ESP_LOGW(TAG, "加密失败：%d", event->enc_change.status);
+        }
         return 0;
 
     case BLE_GAP_EVENT_NOTIFY_TX:
-        MODLOG_DFLT(INFO, "notify_tx event; conn_handle=%d attr_handle=%d "
-                "status=%d is_indication=%d",
+        MODLOG_DFLT(INFO, "通知发送事件；conn_handle=%d attr_handle=%d "
+                "状态=%d is_indication=%d",
                 event->notify_tx.conn_handle,
                 event->notify_tx.attr_handle,
                 event->notify_tx.status,
@@ -872,51 +890,24 @@ nimble_hid_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_REPEAT_PAIRING:
         /* We already have a bond with the peer, but it is attempting to
-         * establish a new secure link.  This app sacrifices security for
-         * convenience: just throw away the old bond and accept the new link.
+         * establish a new secure link. Accept the existing bond.
          */
+        ESP_LOGI(TAG, "检测到重复配对 - 使用现有绑定");
 
-        /* Delete the old bond. */
-        rc = ble_gap_conn_find(event->repeat_pairing.conn_handle, &desc);
-        assert(rc == 0);
-        ble_store_util_delete_peer(&desc.peer_id_addr);
-
-        /* Return BLE_GAP_REPEAT_PAIRING_RETRY to indicate that the host should
-         * continue with the pairing operation.
-         */
-        return BLE_GAP_REPEAT_PAIRING_RETRY;
+        /* Return 0 to accept existing bond and continue */
+        return 0;
 
     case BLE_GAP_EVENT_PASSKEY_ACTION:
-        ESP_LOGI(TAG, "PASSKEY_ACTION_EVENT started");
+        /* Handle passkey events for DISP_ONLY mode
+         * Windows may request passkey display during pairing
+         */
+        ESP_LOGI(TAG, "密码动作事件：action=%d", event->passkey.params.action);
         struct ble_sm_io pkey = {0};
-        int key = 0;
-
-        if (event->passkey.params.action == BLE_SM_IOACT_DISP) {
-            pkey.action = event->passkey.params.action;
-            pkey.passkey = 123456; // This is the passkey to be entered on peer
-            ESP_LOGI(TAG, "Enter passkey %" PRIu32 "on the peer side", pkey.passkey);
-            rc = ble_sm_inject_io(event->passkey.conn_handle, &pkey);
-            ESP_LOGI(TAG, "ble_sm_inject_io result: %d", rc);
-        } else if (event->passkey.params.action == BLE_SM_IOACT_NUMCMP) {
-            ESP_LOGI(TAG, "Accepting passkey..");
-            pkey.action = event->passkey.params.action;
-            pkey.numcmp_accept = key;
-            rc = ble_sm_inject_io(event->passkey.conn_handle, &pkey);
-            ESP_LOGI(TAG, "ble_sm_inject_io result: %d", rc);
-        } else if (event->passkey.params.action == BLE_SM_IOACT_OOB) {
-            static uint8_t tem_oob[16] = {0};
-            pkey.action = event->passkey.params.action;
-            for (int i = 0; i < 16; i++) {
-                pkey.oob[i] = tem_oob[i];
-            }
-            rc = ble_sm_inject_io(event->passkey.conn_handle, &pkey);
-            ESP_LOGI(TAG, "ble_sm_inject_io result: %d", rc);
-        } else if (event->passkey.params.action == BLE_SM_IOACT_INPUT) {
-            ESP_LOGI(TAG, "Input not supported passing -> 123456");
-            pkey.action = event->passkey.params.action;
-            pkey.passkey = 123456;
-            rc = ble_sm_inject_io(event->passkey.conn_handle, &pkey);
-            ESP_LOGI(TAG, "ble_sm_inject_io result: %d", rc);
+        pkey.action = event->passkey.params.action;
+        pkey.passkey = 123456;  // Default passkey
+        rc = ble_sm_inject_io(event->passkey.conn_handle, &pkey);
+        if (rc != 0) {
+            ESP_LOGE(TAG, "ble_sm_inject_io 失败：%d", rc);
         }
         return 0;
     }
@@ -972,19 +963,19 @@ static esp_err_t init_low_level(uint8_t mode)
     {
         ret = esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
         if (ret) {
-            ESP_LOGE(TAG, "esp_bt_controller_mem_release failed: %d", ret);
+            ESP_LOGE(TAG, "esp_bt_controller_mem_release 失败：%d", ret);
             return ret;
         }
     }
     ret = esp_bt_controller_init(&bt_cfg);
     if (ret) {
-        ESP_LOGE(TAG, "esp_bt_controller_init failed: %d", ret);
+        ESP_LOGE(TAG, "esp_bt_controller_init 失败：%d", ret);
         return ret;
     }
 
     ret = esp_bt_controller_enable(mode);
     if (ret) {
-        ESP_LOGE(TAG, "esp_bt_controller_enable failed: %d", ret);
+        ESP_LOGE(TAG, "esp_bt_controller_enable 失败：%d", ret);
         return ret;
     }
 
@@ -994,13 +985,13 @@ static esp_err_t init_low_level(uint8_t mode)
 #endif
     ret = esp_bluedroid_init_with_cfg(&bluedroid_cfg);
     if (ret) {
-        ESP_LOGE(TAG, "esp_bluedroid_init failed: %d", ret);
+        ESP_LOGE(TAG, "esp_bluedroid_init 失败：%d", ret);
         return ret;
     }
 
     ret = esp_bluedroid_enable();
     if (ret) {
-        ESP_LOGE(TAG, "esp_bluedroid_enable failed: %d", ret);
+        ESP_LOGE(TAG, "esp_bluedroid_enable 失败：%d", ret);
         return ret;
     }
 #if CONFIG_BT_HID_DEVICE_ENABLED
@@ -1039,22 +1030,22 @@ static esp_err_t deinit_low_level(void)
 
     ret = esp_bluedroid_disable();
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "esp_bluedroid_disable failed: %d", ret);
+        ESP_LOGE(TAG, "esp_bluedroid_disable 失败：%d", ret);
     }
 
     ret = esp_bluedroid_deinit();
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "esp_bluedroid_deinit failed: %d", ret);
+        ESP_LOGE(TAG, "esp_bluedroid_deinit 失败：%d", ret);
     }
 
     ret = esp_bt_controller_disable();
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "esp_bt_controller_disable failed: %d", ret);
+        ESP_LOGE(TAG, "esp_bt_controller_disable 失败：%d", ret);
     }
 
     ret = esp_bt_controller_deinit();
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "esp_bt_controller_deinit failed: %d", ret);
+        ESP_LOGE(TAG, "esp_bt_controller_deinit 失败：%d", ret);
     }
 
     return ret;
@@ -1071,24 +1062,24 @@ static esp_err_t init_low_level(uint8_t mode)
 #endif
     ret = esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
     if (ret) {
-        ESP_LOGE(TAG, "esp_bt_controller_mem_release failed: %d", ret);
+        ESP_LOGE(TAG, "esp_bt_controller_mem_release 失败：%d", ret);
         return ret;
     }
     ret = esp_bt_controller_init(&bt_cfg);
     if (ret) {
-        ESP_LOGE(TAG, "esp_bt_controller_init failed: %d", ret);
+        ESP_LOGE(TAG, "esp_bt_controller_init 失败：%d", ret);
         return ret;
     }
 
     ret = esp_bt_controller_enable(mode);
     if (ret) {
-        ESP_LOGE(TAG, "esp_bt_controller_enable failed: %d", ret);
+        ESP_LOGE(TAG, "esp_bt_controller_enable 失败：%d", ret);
         return ret;
     }
 
     ret = esp_nimble_init();
     if (ret) {
-        ESP_LOGE(TAG, "esp_nimble_init failed: %d", ret);
+        ESP_LOGE(TAG, "esp_nimble_init 失败：%d", ret);
         return ret;
     }
 
@@ -1102,17 +1093,17 @@ static esp_err_t deinit_low_level(void)
 
     ret = esp_nimble_deinit();
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "esp_nimble_deinit failed: %d", ret);
+        ESP_LOGE(TAG, "esp_nimble_deinit 失败：%d", ret);
     }
 
     ret = esp_bt_controller_disable();
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "esp_bt_controller_disable failed: %d", ret);
+        ESP_LOGE(TAG, "esp_bt_controller_disable 失败：%d", ret);
     }
 
     ret = esp_bt_controller_deinit();
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "esp_bt_controller_deinit failed: %d", ret);
+        ESP_LOGE(TAG, "esp_bt_controller_deinit 失败：%d", ret);
     }
 
     return ret;
@@ -1125,7 +1116,7 @@ esp_err_t esp_hid_gap_deinit(void)
 
     ret = deinit_low_level();
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "deinit_low_level failed: %d", ret);
+        ESP_LOGE(TAG, "deinit_low_level 失败：%d", ret);
     }
 
     if (bt_hidh_cb_semaphore != NULL) {
@@ -1150,19 +1141,19 @@ esp_err_t esp_hid_gap_init(uint8_t mode)
     }
 
     if (bt_hidh_cb_semaphore != NULL) {
-        ESP_LOGE(TAG, "Already initialised");
+        ESP_LOGE(TAG, "已初始化");
         return ESP_FAIL;
     }
 
     bt_hidh_cb_semaphore = xSemaphoreCreateBinary();
     if (bt_hidh_cb_semaphore == NULL) {
-        ESP_LOGE(TAG, "xSemaphoreCreateMutex failed!");
+        ESP_LOGE(TAG, "xSemaphoreCreateBinary 失败!");
         return ESP_FAIL;
     }
 
     ble_hidh_cb_semaphore = xSemaphoreCreateBinary();
     if (ble_hidh_cb_semaphore == NULL) {
-        ESP_LOGE(TAG, "xSemaphoreCreateMutex failed!");
+        ESP_LOGE(TAG, "xSemaphoreCreateBinary 失败!");
         vSemaphoreDelete(bt_hidh_cb_semaphore);
         bt_hidh_cb_semaphore = NULL;
         return ESP_FAIL;
@@ -1184,7 +1175,7 @@ esp_err_t esp_hid_gap_init(uint8_t mode)
 esp_err_t esp_hid_scan(uint32_t seconds, size_t *num_results, esp_hid_scan_result_t **results)
 {
     if (num_bt_scan_results || bt_scan_results || num_ble_scan_results || ble_scan_results) {
-        ESP_LOGE(TAG, "There are old scan results. Free them first!");
+        ESP_LOGE(TAG, "存在旧的扫描结果，请先释放!");
         return ESP_FAIL;
     }
 

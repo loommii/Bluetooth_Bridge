@@ -84,14 +84,22 @@ static void parse_mouse_report(const uint8_t *report, uint8_t report_len, usb_mo
  */
 static void print_mouse_event(const usb_mouse_report_t *report)
 {
-    // 只在数据变化时打印
-    static usb_mouse_report_t last = {0};
-    if (report->buttons != last.buttons || report->x != last.x || 
-        report->y != last.y || report->wheel != last.wheel) {
+    // 已屏蔽：鼠标移动日志太多，影响观察配对/连接日志
+    // 如需调试，取消下面注释
+    #if 0
+    // 只在按键状态变化时打印 INFO 日志
+    static uint8_t last_buttons = 0;
+
+    if (report->buttons != last_buttons) {
         ESP_LOGI(TAG, "Mouse: btn=0x%02X, X=%+d, Y=%+d, W=%+d",
                  report->buttons, report->x, report->y, report->wheel);
-        last = *report;
+        last_buttons = report->buttons;
+    } else {
+        // 移动时使用 DEBUG 级别
+        ESP_LOGD(TAG, "Mouse: X=%+d, Y=%+d, W=%+d",
+                 report->x, report->y, report->wheel);
     }
+    #endif
 }
 
 /**
@@ -105,38 +113,38 @@ static void hid_device_event_callback(hid_host_device_handle_t hid_device_handle
 
     switch (event) {
     case HID_HOST_DRIVER_EVENT_CONNECTED:
-        ESP_LOGI(TAG, "HID device connected event");
-        
+        ESP_LOGI(TAG, "HID 设备连接事件");
+
         // 打开设备
         hid_host_device_config_t dev_config = {
             .callback = hid_interface_event_callback,
             .callback_arg = ctx,
         };
-        
+
         esp_err_t ret = hid_host_device_open(hid_device_handle, &dev_config);
         if (ret == ESP_OK) {
             ctx->hid_dev_hdl = hid_device_handle;
             ctx->is_connected = true;
-            
+
             // 获取设备参数
             hid_host_dev_params_t dev_params;
             if (hid_host_device_get_params(hid_device_handle, &dev_params) == ESP_OK) {
-                ESP_LOGI(TAG, "HID device opened: addr=%d, iface=%d, proto=%d",
+                ESP_LOGI(TAG, "HID 设备已打开：地址=%d, 接口=%d, 协议=%d",
                          dev_params.addr, dev_params.iface_num, dev_params.proto);
             }
-            
+
             // 启动设备
             hid_host_device_start(hid_device_handle);
             ctx->is_started = true;
-            
-            ESP_LOGI(TAG, "USB HID Mouse ready!");
+
+            ESP_LOGI(TAG, "USB HID 鼠标已就绪!");
         } else {
-            ESP_LOGE(TAG, "Failed to open HID device: %s", esp_err_to_name(ret));
+            ESP_LOGE(TAG, "打开 HID 设备失败：%s", esp_err_to_name(ret));
         }
         break;
 
     default:
-        ESP_LOGW(TAG, "Unknown HID event: %d", event);
+        ESP_LOGW(TAG, "未知 HID 事件：%d", event);
         break;
     }
 }
@@ -164,16 +172,16 @@ static void hid_interface_event_callback(hid_host_device_handle_t hid_device_han
             hid_device_handle, report, sizeof(report), &report_len);
 
         if (ret == ESP_OK && report_len > 0) {
-            // 打印原始报告数据用于调试
-            ESP_LOGD(TAG, "USB Raw Report (len=%d): %02x %02x %02x %02x %02x %02x %02x %02x",
-                     report_len,
-                     report[0], report[1], report[2], report[3],
-                     report[4], report[5], report[6], report[7]);
-            
+            // 已屏蔽：原始报告日志太频繁
+            // ESP_LOGD(TAG, "USB Raw Report (len=%d): %02x %02x %02x %02x %02x %02x %02x %02x",
+            //          report_len,
+            //          report[0], report[1], report[2], report[3],
+            //          report[4], report[5], report[6], report[7]);
+
             usb_mouse_report_t mouse_report = {0};
             parse_mouse_report(report, report_len, &mouse_report);
 
-            // 打印解析后的鼠标事件
+            // 打印解析后的鼠标事件（已屏蔽）
             print_mouse_event(&mouse_report);
 
             // 调用用户回调
@@ -186,30 +194,30 @@ static void hid_interface_event_callback(hid_host_device_handle_t hid_device_han
         }
         break;
     }
-    
+
     case HID_HOST_INTERFACE_EVENT_DISCONNECTED:
-        ESP_LOGI(TAG, "HID device disconnected");
+        ESP_LOGI(TAG, "HID 设备已断开");
         ctx->is_connected = false;
         ctx->is_started = false;
         ctx->hid_dev_hdl = NULL;
         break;
-        
+
     case HID_HOST_INTERFACE_EVENT_TRANSFER_ERROR:
-        ESP_LOGW(TAG, "HID transfer error");
+        ESP_LOGW(TAG, "HID 传输错误");
         break;
-        
+
 #ifdef HID_HOST_SUSPEND_RESUME_API_SUPPORTED
     case HID_HOST_INTERFACE_EVENT_SUSPENDED:
-        ESP_LOGD(TAG, "HID device suspended");
+        ESP_LOGD(TAG, "HID 设备已挂起");
         break;
-        
+
     case HID_HOST_INTERFACE_EVENT_RESUMED:
-        ESP_LOGD(TAG, "HID device resumed");
+        ESP_LOGD(TAG, "HID 设备已恢复");
         break;
 #endif
-        
+
     default:
-        ESP_LOGW(TAG, "Unknown interface event: %d", event);
+        ESP_LOGW(TAG, "未知接口事件：%d", event);
         break;
     }
 }
@@ -222,7 +230,7 @@ esp_err_t usb_host_mouse_init(usb_mouse_event_cb_t callback, void *user_data)
     esp_err_t ret;
 
     if (s_mouse_ctx.hid_dev_hdl) {
-        ESP_LOGW(TAG, "Already initialized");
+        ESP_LOGW(TAG, "已初始化");
         return ESP_ERR_INVALID_STATE;
     }
 
@@ -238,11 +246,11 @@ esp_err_t usb_host_mouse_init(usb_mouse_event_cb_t callback, void *user_data)
 
     ret = usb_host_install(&usb_host_config);
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
-        ESP_LOGE(TAG, "Failed to install USB Host: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "安装 USB Host 失败：%s", esp_err_to_name(ret));
         return ret;
     }
 
-    ESP_LOGI(TAG, "USB Host installed");
+    ESP_LOGI(TAG, "USB Host 已安装");
 
     // 2. 创建 USB Host 守护任务（增加栈大小到 4KB）
     xTaskCreate(usb_daemon_task, "usb_daemon", 4096, NULL, 5, NULL);
@@ -259,11 +267,11 @@ esp_err_t usb_host_mouse_init(usb_mouse_event_cb_t callback, void *user_data)
 
     ret = hid_host_install(&hid_config);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to install HID Host: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "安装 HID Host 失败：%s", esp_err_to_name(ret));
         return ret;
     }
 
-    ESP_LOGI(TAG, "HID Host installed");
+    ESP_LOGI(TAG, "HID Host 已安装");
 
     return ESP_OK;
 }
@@ -274,7 +282,7 @@ esp_err_t usb_host_mouse_init(usb_mouse_event_cb_t callback, void *user_data)
 esp_err_t usb_host_mouse_deinit(void)
 {
     if (!s_mouse_ctx.hid_dev_hdl && !s_mouse_ctx.is_connected) {
-        ESP_LOGW(TAG, "Not initialized");
+        ESP_LOGW(TAG, "未初始化");
         return ESP_ERR_INVALID_STATE;
     }
 
@@ -292,7 +300,7 @@ esp_err_t usb_host_mouse_deinit(void)
 
     memset(&s_mouse_ctx, 0, sizeof(s_mouse_ctx));
 
-    ESP_LOGI(TAG, "USB Host Mouse deinitialized");
+    ESP_LOGI(TAG, "USB Host Mouse 已反初始化");
 
     return ESP_OK;
 }
@@ -303,7 +311,7 @@ esp_err_t usb_host_mouse_deinit(void)
 static void usb_host_mouse_monitor_task(void *arg)
 {
     usb_mouse_ctx_t *ctx = (usb_mouse_ctx_t *)arg;
-    
+
     while (1) {
         if (ctx->is_connected && ctx->hid_dev_hdl && !ctx->is_started) {
             // 设备已连接但未启动，重新启动
@@ -320,25 +328,25 @@ static void usb_host_mouse_monitor_task(void *arg)
 esp_err_t usb_host_mouse_start(size_t stack_size, UBaseType_t priority)
 {
     if (s_mouse_ctx.task_hdl) {
-        ESP_LOGW(TAG, "Task already started");
+        ESP_LOGW(TAG, "任务已启动");
         return ESP_ERR_INVALID_STATE;
     }
 
     // HID 事件处理已经在后台任务中完成，不需要额外任务
     // 这里创建一个监控任务用于处理连接状态
-    BaseType_t ret = xTaskCreate(usb_host_mouse_monitor_task, 
-                                  "usb_mouse_mon", 
-                                  stack_size, 
-                                  &s_mouse_ctx, 
-                                  priority, 
+    BaseType_t ret = xTaskCreate(usb_host_mouse_monitor_task,
+                                  "usb_mouse_mon",
+                                  stack_size,
+                                  &s_mouse_ctx,
+                                  priority,
                                   &s_mouse_ctx.task_hdl);
-    
+
     if (ret != pdPASS) {
-        ESP_LOGE(TAG, "Failed to create task");
+        ESP_LOGE(TAG, "创建任务失败");
         return ESP_ERR_NO_MEM;
     }
 
-    ESP_LOGI(TAG, "Mouse monitoring task started");
+    ESP_LOGI(TAG, "鼠标监控任务已启动");
 
     return ESP_OK;
 }
@@ -362,7 +370,7 @@ esp_err_t usb_host_mouse_stop(void)
     vTaskDelete(s_mouse_ctx.task_hdl);
     s_mouse_ctx.task_hdl = NULL;
 
-    ESP_LOGI(TAG, "Mouse monitoring task stopped");
+    ESP_LOGI(TAG, "鼠标监控任务已停止");
 
     return ESP_OK;
 }
@@ -381,9 +389,22 @@ bool usb_host_mouse_is_connected(void)
 typedef struct {
     esp_hidd_dev_t *ble_hid_dev;     ///< 蓝牙 HID 设备句柄
     bool bridge_enabled;             ///< 桥接使能
+    uint32_t connect_tick;           ///< 连接建立时间戳
+    uint32_t last_send_tick;         ///< 上次发送时间戳 (ms)
+    uint8_t last_buttons;            ///< 上次按键状态
+    int8_t last_x;                   ///< 上次 X 轴
+    int8_t last_y;                   ///< 上次 Y 轴
+    int8_t last_wheel;               ///< 上次滚轮
 } usb_bridge_ctx_t;
 
 static usb_bridge_ctx_t s_bridge_ctx = {0};
+
+// 最小发送间隔 (ms) - 防止发送过快导致拥塞
+#define BRIDGE_SEND_INTERVAL_MS  20
+
+// 连接稳定延迟 (ms) - 连接建立后等待这么久再发送数据，让加密和服务发现完成
+// Windows 蓝牙连接后需要时间完成加密流程，太早发送会导致断开
+#define BRIDGE_CONNECT_STABLE_DELAY_MS  1000
 
 /**
  * @brief 设置桥接目标（蓝牙 HID 设备）
@@ -393,10 +414,18 @@ esp_err_t usb_host_mouse_set_bridge_target(esp_hidd_dev_t *hid_dev)
     if (hid_dev == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
-    
+
     s_bridge_ctx.ble_hid_dev = hid_dev;
-    ESP_LOGI(TAG, "Bridge target set: %p", (void*)hid_dev);
-    
+    // 重置状态
+    s_bridge_ctx.connect_tick = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    s_bridge_ctx.last_send_tick = 0;
+    s_bridge_ctx.last_buttons = 0;
+    s_bridge_ctx.last_x = 0;
+    s_bridge_ctx.last_y = 0;
+    s_bridge_ctx.last_wheel = 0;
+
+    ESP_LOGD(TAG, "桥接目标已设置：%p", (void*)hid_dev);
+
     return ESP_OK;
 }
 
@@ -406,13 +435,13 @@ esp_err_t usb_host_mouse_set_bridge_target(esp_hidd_dev_t *hid_dev)
 esp_err_t usb_host_mouse_enable_bridge(void)
 {
     if (s_bridge_ctx.ble_hid_dev == NULL) {
-        ESP_LOGW(TAG, "No bridge target set");
+        ESP_LOGW(TAG, "未设置桥接目标");
         return ESP_ERR_INVALID_STATE;
     }
-    
+
     s_bridge_ctx.bridge_enabled = true;
-    ESP_LOGI(TAG, "USB to BLE bridge enabled");
-    
+    ESP_LOGD(TAG, "USB 转蓝牙桥接已启用");
+
     return ESP_OK;
 }
 
@@ -422,8 +451,8 @@ esp_err_t usb_host_mouse_enable_bridge(void)
 esp_err_t usb_host_mouse_disable_bridge(void)
 {
     s_bridge_ctx.bridge_enabled = false;
-    ESP_LOGI(TAG, "USB to BLE bridge disabled");
-    
+    ESP_LOGD(TAG, "USB 转蓝牙桥接已禁用");
+
     return ESP_OK;
 }
 
@@ -438,7 +467,7 @@ bool usb_host_mouse_is_bridge_enabled(void)
 /**
  * @brief 发送鼠标数据到蓝牙 HID 设备
  */
-esp_err_t usb_host_mouse_send_to_ble(esp_hidd_dev_t *hid_dev, 
+esp_err_t usb_host_mouse_send_to_ble(esp_hidd_dev_t *hid_dev,
                                       uint8_t buttons,
                                       int8_t dx,
                                       int8_t dy,
@@ -448,21 +477,31 @@ esp_err_t usb_host_mouse_send_to_ble(esp_hidd_dev_t *hid_dev,
         return ESP_ERR_INVALID_ARG;
     }
 
+    // 检查连接稳定延迟 - 连接后等待一段时间再发送
+    uint32_t current_tick = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    if (current_tick - s_bridge_ctx.connect_tick < BRIDGE_CONNECT_STABLE_DELAY_MS) {
+        ESP_LOGD(TAG, "跳过发送：连接未稳定 (%d ms)",
+                 current_tick - s_bridge_ctx.connect_tick);
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // 检查发送间隔限制
+    if (current_tick - s_bridge_ctx.last_send_tick < BRIDGE_SEND_INTERVAL_MS) {
+        // 时间间隔太短，跳过发送（除非按键状态变化）
+        if (buttons == s_bridge_ctx.last_buttons &&
+            dx == 0 && dy == 0 && wheel == 0) {
+            return ESP_OK;
+        }
+    }
+
     // 构建鼠标报告数据（4 字节）
-    // 根据蓝牙 HID 报告描述符：
-    // - 字节 0: 按键 [bit0=左，bit1=中，bit2=右，bit3-7=0]
-    // - 字节 1: X 轴
-    // - 字节 2: Y 轴
-    // - 字节 3: 滚轮
     uint8_t buffer[4] = {0};
-    
+
     // USB 鼠标按键格式转换到蓝牙 HID 格式
-    // USB 标准：bit0=左，bit1=右，bit2=中
-    // HID 标准：bit0=左 (Button1), bit1=右 (Button2), bit2=中 (Button3)
     uint8_t hid_buttons = 0;
-    if (buttons & 0x01) hid_buttons |= 0x01;  // USB 左 -> HID 左 (Button1)
-    if (buttons & 0x02) hid_buttons |= 0x02;  // USB 右 -> HID 右 (Button2)
-    if (buttons & 0x04) hid_buttons |= 0x04;  // USB 中 -> HID 中 (Button3)
+    if (buttons & 0x01) hid_buttons |= 0x01;  // USB 左 -> HID 左
+    if (buttons & 0x02) hid_buttons |= 0x02;  // USB 右 -> HID 右
+    if (buttons & 0x04) hid_buttons |= 0x04;  // USB 中 -> HID 中
 
     buffer[0] = hid_buttons;
     buffer[1] = (uint8_t)dx;
@@ -472,7 +511,14 @@ esp_err_t usb_host_mouse_send_to_ble(esp_hidd_dev_t *hid_dev,
     // 发送到蓝牙 HID 设备
     esp_err_t ret = esp_hidd_dev_input_set(hid_dev, 0, 0, buffer, 4);
     if (ret != ESP_OK) {
-        ESP_LOGD(TAG, "Send to BLE failed: %s", esp_err_to_name(ret));
+        ESP_LOGD(TAG, "发送到蓝牙失败：%s", esp_err_to_name(ret));
+    } else {
+        // 更新发送状态
+        s_bridge_ctx.last_send_tick = current_tick;
+        s_bridge_ctx.last_buttons = buttons;
+        s_bridge_ctx.last_x = dx;
+        s_bridge_ctx.last_y = dy;
+        s_bridge_ctx.last_wheel = wheel;
     }
 
     return ret;

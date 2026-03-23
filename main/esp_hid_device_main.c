@@ -43,6 +43,12 @@
 // USB Host 鼠标支持（使用 usb_host_hid 组件时启用）
 #include "usb_host_mouse.h"
 
+// ==================== 版本号定义 ====================
+#define APP_VERSION_MAJOR    1
+#define APP_VERSION_MINOR    0
+#define APP_VERSION_PATCH    1
+// ================================================
+
 static const char *TAG = "HID_DEV_DEMO";
 
 typedef struct
@@ -615,24 +621,28 @@ static void ble_hidd_event_callback(void *handler_args, esp_event_base_t base, i
 
     switch (event) {
     case ESP_HIDD_START_EVENT: {
-        ESP_LOGI(TAG, "START");
+        ESP_LOGI(TAG, "开始");
         esp_hid_ble_gap_adv_start();
         break;
     }
     case ESP_HIDD_CONNECT_EVENT: {
-        ESP_LOGI(TAG, "CONNECT");
-        // 启用 USB 鼠标到蓝牙的桥接
+        ESP_LOGI(TAG, "已连接");
+        // 设置桥接目标，但不立即启用
         usb_host_mouse_set_bridge_target(s_ble_hid_param.hid_dev);
+        // 延迟启用桥接，等待连接完全建立（加密、服务发现完成）
+        // 立即启用可能导致在连接未稳定时发送数据，引发断开
+        ESP_LOGI(TAG, "等待连接稳定...");
+        vTaskDelay(pdMS_TO_TICKS(500));  // 等待 500ms
         usb_host_mouse_enable_bridge();
-        ESP_LOGI(TAG, "USB to BLE bridge enabled");
+        ESP_LOGI(TAG, "USB 转蓝牙桥接已启用");
         break;
     }
     case ESP_HIDD_PROTOCOL_MODE_EVENT: {
-        ESP_LOGI(TAG, "PROTOCOL MODE[%u]: %s", param->protocol_mode.map_index, param->protocol_mode.protocol_mode ? "REPORT" : "BOOT");
+        ESP_LOGI(TAG, "协议模式 [%u]: %s", param->protocol_mode.map_index, param->protocol_mode.protocol_mode ? "REPORT" : "BOOT");
         break;
     }
     case ESP_HIDD_CONTROL_EVENT: {
-        ESP_LOGI(TAG, "CONTROL[%u]: %sSUSPEND", param->control.map_index, param->control.control ? "EXIT_" : "");
+        ESP_LOGI(TAG, "控制 [%u]: %s 挂起", param->control.map_index, param->control.control ? "退出_" : "");
         if (param->control.control)
         {
             // exit suspend
@@ -644,26 +654,26 @@ static void ble_hidd_event_callback(void *handler_args, esp_event_base_t base, i
     break;
     }
     case ESP_HIDD_OUTPUT_EVENT: {
-        ESP_LOGI(TAG, "OUTPUT[%u]: %8s ID: %2u, Len: %d, Data:", param->output.map_index, esp_hid_usage_str(param->output.usage), param->output.report_id, param->output.length);
+        ESP_LOGI(TAG, "输出 [%u]: %8s ID: %2u, 长度：%d, 数据:", param->output.map_index, esp_hid_usage_str(param->output.usage), param->output.report_id, param->output.length);
         ESP_LOG_BUFFER_HEX(TAG, param->output.data, param->output.length);
         break;
     }
     case ESP_HIDD_FEATURE_EVENT: {
-        ESP_LOGI(TAG, "FEATURE[%u]: %8s ID: %2u, Len: %d, Data:", param->feature.map_index, esp_hid_usage_str(param->feature.usage), param->feature.report_id, param->feature.length);
+        ESP_LOGI(TAG, "特性 [%u]: %8s ID: %2u, 长度：%d, 数据:", param->feature.map_index, esp_hid_usage_str(param->feature.usage), param->feature.report_id, param->feature.length);
         ESP_LOG_BUFFER_HEX(TAG, param->feature.data, param->feature.length);
         break;
     }
     case ESP_HIDD_DISCONNECT_EVENT: {
-        ESP_LOGI(TAG, "DISCONNECT: %s", esp_hid_disconnect_reason_str(esp_hidd_dev_transport_get(param->disconnect.dev), param->disconnect.reason));
+        ESP_LOGI(TAG, "已断开：%s", esp_hid_disconnect_reason_str(esp_hidd_dev_transport_get(param->disconnect.dev), param->disconnect.reason));
         // 禁用 USB 鼠标到蓝牙的桥接
         usb_host_mouse_disable_bridge();
-        ESP_LOGI(TAG, "USB to BLE bridge disabled");
+        ESP_LOGI(TAG, "USB 转蓝牙桥接已禁用");
         ble_hid_task_shut_down();
         esp_hid_ble_gap_adv_start();
         break;
     }
     case ESP_HIDD_STOP_EVENT: {
-        ESP_LOGI(TAG, "STOP");
+        ESP_LOGI(TAG, "停止");
         break;
     }
     default:
@@ -807,59 +817,59 @@ static void bt_hidd_event_callback(void *handler_args, esp_event_base_t base, in
     switch (event) {
     case ESP_HIDD_START_EVENT: {
         if (param->start.status == ESP_OK) {
-            ESP_LOGI(TAG, "START OK");
-            ESP_LOGI(TAG, "Setting to connectable, discoverable");
+            ESP_LOGI(TAG, "启动成功");
+            ESP_LOGI(TAG, "设置为可连接、可发现");
             esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
         } else {
-            ESP_LOGE(TAG, "START failed!");
+            ESP_LOGE(TAG, "启动失败!");
         }
         break;
     }
     case ESP_HIDD_CONNECT_EVENT: {
         if (param->connect.status == ESP_OK) {
-            ESP_LOGI(TAG, "CONNECT OK");
-            ESP_LOGI(TAG, "Setting to non-connectable, non-discoverable");
+            ESP_LOGI(TAG, "连接成功");
+            ESP_LOGI(TAG, "设置为不可连接、不可发现");
             esp_bt_gap_set_scan_mode(ESP_BT_NON_CONNECTABLE, ESP_BT_NON_DISCOVERABLE);
             bt_hid_task_start_up();
             // 启用 USB 鼠标到蓝牙的桥接
             usb_host_mouse_set_bridge_target(s_bt_hid_param.hid_dev);
             usb_host_mouse_enable_bridge();
-            ESP_LOGI(TAG, "USB to BT bridge enabled");
+            ESP_LOGD(TAG, "USB 转蓝牙桥接已启用");
         } else {
-            ESP_LOGE(TAG, "CONNECT failed!");
+            ESP_LOGE(TAG, "连接失败!");
         }
         break;
     }
     case ESP_HIDD_PROTOCOL_MODE_EVENT: {
-        ESP_LOGI(TAG, "PROTOCOL MODE[%u]: %s", param->protocol_mode.map_index, param->protocol_mode.protocol_mode ? "REPORT" : "BOOT");
+        ESP_LOGI(TAG, "协议模式 [%u]: %s", param->protocol_mode.map_index, param->protocol_mode.protocol_mode ? "REPORT" : "BOOT");
         break;
     }
     case ESP_HIDD_OUTPUT_EVENT: {
-        ESP_LOGI(TAG, "OUTPUT[%u]: %8s ID: %2u, Len: %d, Data:", param->output.map_index, esp_hid_usage_str(param->output.usage), param->output.report_id, param->output.length);
+        ESP_LOGI(TAG, "输出 [%u]: %8s ID: %2u, 长度：%d, 数据:", param->output.map_index, esp_hid_usage_str(param->output.usage), param->output.report_id, param->output.length);
         ESP_LOG_BUFFER_HEX(TAG, param->output.data, param->output.length);
         break;
     }
     case ESP_HIDD_FEATURE_EVENT: {
-        ESP_LOGI(TAG, "FEATURE[%u]: %8s ID: %2u, Len: %d, Data:", param->feature.map_index, esp_hid_usage_str(param->feature.usage), param->feature.report_id, param->feature.length);
+        ESP_LOGI(TAG, "特性 [%u]: %8s ID: %2u, 长度：%d, 数据:", param->feature.map_index, esp_hid_usage_str(param->feature.usage), param->feature.report_id, param->feature.length);
         ESP_LOG_BUFFER_HEX(TAG, param->feature.data, param->feature.length);
         break;
     }
     case ESP_HIDD_DISCONNECT_EVENT: {
         if (param->disconnect.status == ESP_OK) {
-            ESP_LOGI(TAG, "DISCONNECT OK");
+            ESP_LOGI(TAG, "断开成功");
             // 禁用 USB 鼠标到蓝牙的桥接
             usb_host_mouse_disable_bridge();
-            ESP_LOGI(TAG, "USB to BT bridge disabled");
+            ESP_LOGD(TAG, "USB 转蓝牙桥接已禁用");
             bt_hid_task_shut_down();
-            ESP_LOGI(TAG, "Setting to connectable, discoverable again");
+            ESP_LOGI(TAG, "重新设置为可连接、可发现");
             esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
         } else {
-            ESP_LOGE(TAG, "DISCONNECT failed!");
+            ESP_LOGE(TAG, "断开失败!");
         }
         break;
     }
     case ESP_HIDD_STOP_EVENT: {
-        ESP_LOGI(TAG, "STOP");
+        ESP_LOGI(TAG, "停止");
         break;
     }
     default:
@@ -926,17 +936,28 @@ void app_main(void)
 {
     esp_err_t ret;
 #if HID_DEV_MODE == HIDD_IDLE_MODE
-    ESP_LOGE(TAG, "Please turn on BT HID device or BLE!");
+    ESP_LOGE(TAG, "请启用蓝牙 HID 设备或 BLE!");
     return;
 #endif
+
+    // 输出版本号
+    ESP_LOGI(TAG, "========================================");
+    ESP_LOGI(TAG, "USB 转蓝牙鼠标桥接");
+    ESP_LOGI(TAG, "版本：%d.%d.%d", APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH);
+    ESP_LOGI(TAG, "========================================");
+
+    // 初始化 NVS（保留已保存的配对信息）
+    // 配对信息存储在 NVS 中，断电后不会丢失，支持自动重连
     ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        // NVS 分区损坏或版本不兼容，需要擦除
+        ESP_LOGW(TAG, "NVS 错误，正在擦除...");
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
     }
-    ESP_ERROR_CHECK( ret );
+    ESP_ERROR_CHECK(ret);
 
-    ESP_LOGI(TAG, "setting hid gap, mode:%d", HID_DEV_MODE);
+    ESP_LOGI(TAG, "初始化 HID GAP，模式:%d", HID_DEV_MODE);
     ret = esp_hid_gap_init(HID_DEV_MODE);
     ESP_ERROR_CHECK( ret );
 
@@ -951,25 +972,25 @@ void app_main(void)
     ESP_ERROR_CHECK( ret );
 #if CONFIG_BT_BLE_ENABLED
     if ((ret = esp_ble_gatts_register_callback(esp_hidd_gatts_event_handler)) != ESP_OK) {
-        ESP_LOGE(TAG, "GATTS register callback failed: %d", ret);
+        ESP_LOGE(TAG, "GATTS 注册回调失败：%d", ret);
         return;
     }
 #endif
-    ESP_LOGI(TAG, "setting ble device");
+    ESP_LOGI(TAG, "设置蓝牙设备");
     ESP_ERROR_CHECK(
         esp_hidd_dev_init(&ble_hid_config, ESP_HID_TRANSPORT_BLE, ble_hidd_event_callback, &s_ble_hid_param.hid_dev));
 #endif
 
 #if CONFIG_BT_HID_DEVICE_ENABLED
-    ESP_LOGI(TAG, "setting device name");
+    ESP_LOGI(TAG, "设置设备名称");
     esp_bt_gap_set_device_name(bt_hid_config.device_name);
-    ESP_LOGI(TAG, "setting cod major, peripheral");
+    ESP_LOGI(TAG, "设置 COD 主类别：外设");
     esp_bt_cod_t cod = {0};
     cod.major = ESP_BT_COD_MAJOR_DEV_PERIPHERAL;
     cod.minor = ESP_BT_COD_MINOR_PERIPHERAL_POINTING;
     esp_bt_gap_set_cod(cod, ESP_BT_SET_COD_MAJOR_MINOR);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
-    ESP_LOGI(TAG, "setting bt device");
+    ESP_LOGI(TAG, "设置经典蓝牙设备");
     ESP_ERROR_CHECK(
         esp_hidd_dev_init(&bt_hid_config, ESP_HID_TRANSPORT_BT, bt_hidd_event_callback, &s_bt_hid_param.hid_dev));
 #if CONFIG_BT_SDP_COMMON_ENABLED
@@ -985,12 +1006,12 @@ void app_main(void)
 	/* Starting nimble task after gatts is initialized*/
     ret = esp_nimble_enable(ble_hid_device_host_task);
     if (ret) {
-        ESP_LOGE(TAG, "esp_nimble_enable failed: %d", ret);
+        ESP_LOGE(TAG, "esp_nimble_enable 失败：%d", ret);
     }
 #endif
 
     // 初始化 USB Host 鼠标
-    ESP_LOGI(TAG, "Initializing USB Host Mouse...");
+    ESP_LOGI(TAG, "初始化 USB Host 鼠标...");
     ESP_ERROR_CHECK(usb_host_mouse_init(NULL, NULL));
     ESP_ERROR_CHECK(usb_host_mouse_start(4 * 1024, configMAX_PRIORITIES - 4));
 }
