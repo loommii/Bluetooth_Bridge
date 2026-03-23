@@ -621,6 +621,10 @@ static void ble_hidd_event_callback(void *handler_args, esp_event_base_t base, i
     }
     case ESP_HIDD_CONNECT_EVENT: {
         ESP_LOGI(TAG, "CONNECT");
+        // 启用 USB 鼠标到蓝牙的桥接
+        usb_host_mouse_set_bridge_target(s_ble_hid_param.hid_dev);
+        usb_host_mouse_enable_bridge();
+        ESP_LOGI(TAG, "USB to BLE bridge enabled");
         break;
     }
     case ESP_HIDD_PROTOCOL_MODE_EVENT: {
@@ -651,6 +655,9 @@ static void ble_hidd_event_callback(void *handler_args, esp_event_base_t base, i
     }
     case ESP_HIDD_DISCONNECT_EVENT: {
         ESP_LOGI(TAG, "DISCONNECT: %s", esp_hid_disconnect_reason_str(esp_hidd_dev_transport_get(param->disconnect.dev), param->disconnect.reason));
+        // 禁用 USB 鼠标到蓝牙的桥接
+        usb_host_mouse_disable_bridge();
+        ESP_LOGI(TAG, "USB to BLE bridge disabled");
         ble_hid_task_shut_down();
         esp_hid_ble_gap_adv_start();
         break;
@@ -814,6 +821,10 @@ static void bt_hidd_event_callback(void *handler_args, esp_event_base_t base, in
             ESP_LOGI(TAG, "Setting to non-connectable, non-discoverable");
             esp_bt_gap_set_scan_mode(ESP_BT_NON_CONNECTABLE, ESP_BT_NON_DISCOVERABLE);
             bt_hid_task_start_up();
+            // 启用 USB 鼠标到蓝牙的桥接
+            usb_host_mouse_set_bridge_target(s_bt_hid_param.hid_dev);
+            usb_host_mouse_enable_bridge();
+            ESP_LOGI(TAG, "USB to BT bridge enabled");
         } else {
             ESP_LOGE(TAG, "CONNECT failed!");
         }
@@ -836,6 +847,9 @@ static void bt_hidd_event_callback(void *handler_args, esp_event_base_t base, in
     case ESP_HIDD_DISCONNECT_EVENT: {
         if (param->disconnect.status == ESP_OK) {
             ESP_LOGI(TAG, "DISCONNECT OK");
+            // 禁用 USB 鼠标到蓝牙的桥接
+            usb_host_mouse_disable_bridge();
+            ESP_LOGI(TAG, "USB to BT bridge disabled");
             bt_hid_task_shut_down();
             ESP_LOGI(TAG, "Setting to connectable, discoverable again");
             esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
