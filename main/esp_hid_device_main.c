@@ -43,13 +43,22 @@
 // USB Host 鼠标支持（使用 usb_host_hid 组件时启用）
 #include "usb_host_mouse.h"
 
+// WS2812 LED 支持
+#include "ws2812_led.h"
+
+// 配对模式检测
+#include "pair_mode.h"
+
 // ==================== 版本号定义 ====================
 #define APP_VERSION_MAJOR    1
-#define APP_VERSION_MINOR    0
-#define APP_VERSION_PATCH    1
+#define APP_VERSION_MINOR    1
+#define APP_VERSION_PATCH    0
 // ================================================
 
 static const char *TAG = "HID_DEV_DEMO";
+
+// 前向声明
+static void pair_mode_callback(bool active, void *user_data);
 
 typedef struct
 {
@@ -635,6 +644,8 @@ static void ble_hidd_event_callback(void *handler_args, esp_event_base_t base, i
         vTaskDelay(pdMS_TO_TICKS(500));  // 等待 500ms
         usb_host_mouse_enable_bridge();
         ESP_LOGI(TAG, "USB 转蓝牙桥接已启用");
+        // 连接成功，LED 变绿色
+        ws2812_led_set_mode(WS2812_MODE_CONNECTED);
         break;
     }
     case ESP_HIDD_PROTOCOL_MODE_EVENT: {
@@ -670,6 +681,10 @@ static void ble_hidd_event_callback(void *handler_args, esp_event_base_t base, i
         ESP_LOGI(TAG, "USB 转蓝牙桥接已禁用");
         ble_hid_task_shut_down();
         esp_hid_ble_gap_adv_start();
+        // 断开连接，关闭 LED（如果在配对模式则保持）
+        if (!pair_mode_is_active()) {
+            ws2812_led_off();
+        }
         break;
     }
     case ESP_HIDD_STOP_EVENT: {
@@ -932,6 +947,24 @@ void ble_hid_device_host_task(void *param)
 void ble_store_config_init(void);
 #endif
 
+/**
+ * @brief 配对模式回调函数
+ */
+static void pair_mode_callback(bool active, void *user_data)
+{
+    if (active) {
+        // 进入配对模式：清除所有配对信息，LED 红色闪烁
+        ESP_LOGI(TAG, ">>> 进入配对模式，清除所有配对信息 <<<");
+        esp_hid_clear_ble_bonds();
+        ws2812_led_set_mode(WS2812_MODE_PAIRING);
+    } else {
+        // 退出配对模式
+        ESP_LOGI(TAG, "<<< 退出配对模式 <<<");
+        // 关闭 LED（如果有连接则由连接事件处理设置为绿色）
+        ws2812_led_off();
+    }
+}
+
 void app_main(void)
 {
     esp_err_t ret;
@@ -1014,4 +1047,20 @@ void app_main(void)
     ESP_LOGI(TAG, "初始化 USB Host 鼠标...");
     ESP_ERROR_CHECK(usb_host_mouse_init(NULL, NULL));
     ESP_ERROR_CHECK(usb_host_mouse_start(4 * 1024, configMAX_PRIORITIES - 4));
+    
+    // 初始化 WS2812 LED
+    ESP_LOGI(TAG, "初始化 WS2812 LED...");
+    esp_err_t led_ret = ws2812_led_init();
+    if (led_ret == ESP_OK) {
+        // 启动时闪烁一下表示就绪
+        ws2812_led_set_mode(WS2812_MODE_NORMAL);
+        vTaskDelay(pdMS_TO_TICKS(500));
+        ws2812_led_off();
+    } else {
+        ESP_LOGW(TAG, "WS2812 初始化失败：%s", esp_err_to_name(led_ret));
+    }
+    
+    // 初始化配对模式检测
+    ESP_LOGI(TAG, "初始化配对模式检测 (GPIO1)...");
+    ESP_ERROR_CHECK(pair_mode_init(pair_mode_callback, NULL));
 }

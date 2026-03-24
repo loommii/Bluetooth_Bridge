@@ -1687,6 +1687,40 @@ CONFIG_BT_SMP_CRYPTO_STACK_TINYCRYPT=y
 # CONFIG_BLE_MESH is not set
 
 #
+# Legacy Driver Configurations
+#
+
+#
+# Legacy TWAI Driver Configurations
+#
+# default:
+# CONFIG_TWAI_ISR_IN_IRAM_LEGACY is not set
+# default:
+# CONFIG_TWAI_SUPPRESS_DEPRECATE_WARN is not set
+# default:
+# CONFIG_TWAI_SKIP_LEGACY_CONFLICT_CHECK is not set
+# end of Legacy TWAI Driver Configurations
+
+#
+# Legacy I2C Driver Configurations
+#
+# default:
+# CONFIG_I2C_SUPPRESS_DEPRECATE_WARN is not set
+# default:
+# CONFIG_I2C_SKIP_LEGACY_CONFLICT_CHECK is not set
+# end of Legacy I2C Driver Configurations
+
+#
+# Legacy Touch Sensor Driver Configurations
+#
+# default:
+# CONFIG_TOUCH_SUPPRESS_DEPRECATE_WARN is not set
+# default:
+# CONFIG_TOUCH_SKIP_LEGACY_CONFLICT_CHECK is not set
+# end of Legacy Touch Sensor Driver Configurations
+# end of Legacy Driver Configurations
+
+#
 # eFuse Bit Manager
 #
 # default:
@@ -1736,6 +1770,29 @@ CONFIG_GDMA_OBJ_DRAM_SAFE=y
 # default:
 # CONFIG_GPIO_CTRL_FUNC_IN_IRAM is not set
 # end of ESP-Driver:GPIO Configurations
+
+#
+# ESP-Driver:RMT Configurations
+#
+# default:
+CONFIG_RMT_ENCODER_FUNC_IN_IRAM=y
+# default:
+CONFIG_RMT_TX_ISR_HANDLER_IN_IRAM=y
+# default:
+CONFIG_RMT_RX_ISR_HANDLER_IN_IRAM=y
+# default:
+# CONFIG_RMT_RECV_FUNC_IN_IRAM is not set
+# default:
+# CONFIG_RMT_TX_ISR_CACHE_SAFE is not set
+# default:
+# CONFIG_RMT_RX_ISR_CACHE_SAFE is not set
+# default:
+CONFIG_RMT_OBJ_CACHE_SAFE=y
+# default:
+# CONFIG_RMT_ENABLE_DEBUG_LOG is not set
+# default:
+# CONFIG_RMT_ISR_IRAM_SAFE is not set
+# end of ESP-Driver:RMT Configurations
 
 #
 # ESP-Driver:SPI Configurations
