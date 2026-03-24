@@ -12,6 +12,7 @@
 #include "esp_err.h"
 
 #include "pair_mode.h"
+#include "device_config.h"
 
 static const char *TAG = "PAIR_MODE";
 
@@ -26,8 +27,8 @@ typedef struct {
 
 static pair_mode_ctx_t s_pair_ctx = {0};
 
-// 默认配置
-#define PAIR_GPIO_DEFAULT     GPIO_NUM_1
+// 配对模式配置（来自 device_config.h）
+#define PAIR_GPIO_DEFAULT     PAIR_MODE_GPIO
 #define PAIR_CHECK_INTERVAL   100  // 检查间隔 100ms
 
 /**

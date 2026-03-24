@@ -14,6 +14,7 @@
 #include "esp_err.h"
 
 #include "ws2812_led.h"
+#include "device_config.h"
 
 static const char *TAG = "WS2812_LED";
 
@@ -31,10 +32,9 @@ typedef struct {
 
 static ws2812_ctx_t s_led_ctx = {0};
 
-// 默认配置
-#define WS2812_GPIO           48
-#define WS2812_LED_NUM        1
-#define WS2812_BRIGHTNESS     50  // 0-255
+// LED 配置（来自 device_config.h）
+#define WS2812_GPIO_NUM       WS2812_GPIO
+#define WS2812_LED_BRIGHTNESS WS2812_BRIGHTNESS
 
 /**
  * @brief 闪烁任务 - 用于配对模式
@@ -72,8 +72,8 @@ esp_err_t ws2812_led_init(void)
 
     // 创建 LED 灯条配置
     led_strip_config_t strip_config = {
-        .strip_gpio_num = WS2812_GPIO,
-        .max_leds = WS2812_LED_NUM,
+        .strip_gpio_num = WS2812_GPIO_NUM,
+        .max_leds = 1,
     };
 
     // 创建 RMT 通道配置
@@ -226,20 +226,20 @@ esp_err_t ws2812_led_set_mode(ws2812_mode_t mode)
         return ws2812_led_off();
         
     case WS2812_MODE_NORMAL:
-        // 正常模式：蓝色呼吸灯效果（简化为常亮）
-        return ws2812_led_set_color(0, 0, WS2812_BRIGHTNESS);
-        
+        // 正常模式：蓝色常亮
+        return ws2812_led_set_color(0, 0, WS2812_LED_BRIGHTNESS);
+
     case WS2812_MODE_PAIRING:
         // 配对模式：红色慢闪
-        return ws2812_led_start_blink(WS2812_BRIGHTNESS, 0, 0);
-        
+        return ws2812_led_start_blink(WS2812_LED_BRIGHTNESS, 0, 0);
+
     case WS2812_MODE_CONNECTED:
         // 连接成功：绿色常亮
-        return ws2812_led_set_color(0, WS2812_BRIGHTNESS, 0);
-        
+        return ws2812_led_set_color(0, WS2812_LED_BRIGHTNESS, 0);
+
     case WS2812_MODE_ERROR:
-        // 错误：红色快闪（简化为常亮）
-        return ws2812_led_set_color(WS2812_BRIGHTNESS, 0, 0);
+        // 错误：红色常亮
+        return ws2812_led_set_color(WS2812_LED_BRIGHTNESS, 0, 0);
         
     default:
         return ESP_ERR_INVALID_ARG;

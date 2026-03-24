@@ -49,6 +49,9 @@
 // 配对模式检测
 #include "pair_mode.h"
 
+// 设备配置（伪装信息）
+#include "device_config.h"
+
 // ==================== 版本号定义 ====================
 #define APP_VERSION_MAJOR    1
 #define APP_VERSION_MINOR    1
@@ -231,12 +234,12 @@ static esp_hid_raw_report_map_t ble_report_maps[] = {
 };
 
 static esp_hid_device_config_t ble_hid_config = {
-    .vendor_id          = 0x16C0,
-    .product_id         = 0x05DF,
-    .version            = 0x0100,
-    .device_name        = "ESP Mouse",
-    .manufacturer_name  = "Espressif",
-    .serial_number      = "1234567890",
+    .vendor_id          = DEVICE_VENDOR_ID,
+    .product_id         = DEVICE_PRODUCT_ID,
+    .version            = DEVICE_VERSION,
+    .device_name        = DEVICE_NAME,
+    .manufacturer_name  = MANUFACTURER_NAME,
+    .serial_number      = SERIAL_NUMBER,
     .report_maps        = ble_report_maps,
     .report_maps_len    = 1
 };
