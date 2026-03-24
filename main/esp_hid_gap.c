@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <inttypes.h>
+#include <stdint.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -22,6 +23,7 @@
 #include "host/ble_hs_adv.h"
 #include "nimble/ble.h"
 #include "host/ble_sm.h"
+#include "host/ble_store.h"
 #else
 #include "esp_bt_device.h"
 #endif
@@ -890,11 +892,27 @@ nimble_hid_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_REPEAT_PAIRING:
         /* We already have a bond with the peer, but it is attempting to
-         * establish a new secure link. Accept the existing bond.
+         * establish a new secure link. This happens when the peer (e.g., Windows)
+         * has deleted the bond but we still have it. We need to remove the old
+         * bond to allow fresh pairing.
          */
-        ESP_LOGI(TAG, "检测到重复配对 - 使用现有绑定");
-
-        /* Return 0 to accept existing bond and continue */
+        ESP_LOGI(TAG, "检测到重复配对 - 对端已删除绑定，清除旧绑定信息以允许重新配对");
+        
+        /* First, find the connection to get the peer address */
+        struct ble_gap_conn_desc desc;
+        rc = ble_gap_conn_find(event->repeat_pairing.conn_handle, &desc);
+        if (rc == 0) {
+            /* Delete the bond record for this peer using the peer address */
+            ble_store_util_delete_peer(&desc.peer_id_addr);
+            ESP_LOGI(TAG, "已删除旧绑定：MAC=%02X:%02X:%02X:%02X:%02X:%02X",
+                    desc.peer_id_addr.val[0], desc.peer_id_addr.val[1],
+                    desc.peer_id_addr.val[2], desc.peer_id_addr.val[3],
+                    desc.peer_id_addr.val[4], desc.peer_id_addr.val[5]);
+        } else {
+            ESP_LOGW(TAG, "ble_gap_conn_find 失败：%d", rc);
+        }
+        
+        /* Return 0 to accept the new pairing attempt */
         return 0;
 
     case BLE_GAP_EVENT_PASSKEY_ACTION:
@@ -1213,3 +1231,59 @@ esp_err_t esp_hid_scan(uint32_t seconds, size_t *num_results, esp_hid_scan_resul
     return ESP_OK;
 }
 #endif
+
+/**
+ * @brief 清除所有 BLE 配对信息
+ */
+
+#if CONFIG_BT_NIMBLE_ENABLED
+// NimBLE 回调函数：删除迭代到的记录
+static int delete_iter_callback(const union ble_store_key *key, union ble_store_value *val, void *arg)
+{
+    int type = (intptr_t)arg;
+    int rc = ble_store_delete(type, key);
+    if (rc == 0) {
+        ESP_LOGI(TAG, "已删除一个配对记录");
+    }
+    return 0;
+}
+#endif
+
+esp_err_t esp_hid_clear_ble_bonds(void)
+{
+#if CONFIG_BT_NIMBLE_ENABLED
+    // 使用 NimBLE 的 ble_store_util 删除所有绑定记录
+    ESP_LOGI(TAG, "清除所有 BLE 配对信息...");
+    
+    // 删除所有 peer 记录 - 使用迭代器
+    ble_store_iterate(
+        BLE_STORE_OBJ_TYPE_PEER_SEC,
+        NULL,
+        delete_iter_callback
+    );
+    
+    // 删除所有 CCCD 记录
+    ble_store_iterate(
+        BLE_STORE_OBJ_TYPE_CCCD,
+        NULL,
+        delete_iter_callback
+    );
+    
+    ESP_LOGI(TAG, "配对信息清除完成");
+    return ESP_OK;
+    
+#elif CONFIG_BT_BLE_ENABLED
+    // Bluedroid 的清除方法
+    ESP_LOGI(TAG, "清除所有 BLE 配对信息...");
+    
+    // 使用 esp_ble_gap 的清除函数
+    esp_ble_gap_clear_bond_device();
+    
+    ESP_LOGI(TAG, "配对信息清除完成");
+    return ESP_OK;
+    
+#else
+    ESP_LOGW(TAG, "BLE 未启用，无需清除配对");
+    return ESP_ERR_NOT_SUPPORTED;
+#endif
+}

@@ -79,6 +79,13 @@ esp_err_t esp_hid_gap_deinit(void);
 esp_err_t esp_hid_ble_gap_adv_init(uint16_t appearance, const char *device_name);
 esp_err_t esp_hid_ble_gap_adv_start(void);
 
+/**
+ * @brief 清除所有 BLE 配对信息
+ *        用于进入配对模式时清除旧绑定
+ * @return esp_err_t
+ */
+esp_err_t esp_hid_clear_ble_bonds(void);
+
 #ifdef __cplusplus
 }
 #endif
